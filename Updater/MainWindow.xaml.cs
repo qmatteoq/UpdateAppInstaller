@@ -1,6 +1,8 @@
 ﻿using NLog;
 using System;
 using System.Diagnostics;
+using System.IO;
+using System.Net.Http;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Threading;
@@ -42,44 +44,60 @@ namespace Updater
 
         private async void OnInstallUpdate(object sender, RoutedEventArgs e)
         {
-            try
+            txtUpdateStatus.Text = "Installing update. At the end of the process, the application will be closed. Launch it again to use the new version";
+
+            var appInstallerUri = new Uri(txtAppInstallerUri.Text);
+            logger.Info($"AppInstaller Url: {appInstallerUri}");
+
+            var deploymentTask = pm.RequestAddPackageByAppInstallerFileAsync(appInstallerUri,
+                            AddPackageByAppInstallerOptions.ForceTargetAppShutdown, pm.GetDefaultPackageVolume());
+
+            deploymentTask.Progress = (task, progress) =>
             {
-                txtUpdateStatus.Text = "Installing update. At the end of the process, the application will be closed. Launch it again to use the new version";
-
-                var appInstallerUri = new Uri(txtAppInstallerUri.Text);
-                logger.Info($"AppInstaller Url: {appInstallerUri}");
-
-                var deploymentTask = pm.RequestAddPackageByAppInstallerFileAsync(appInstallerUri,
-                                AddPackageByAppInstallerOptions.ForceTargetAppShutdown, pm.GetDefaultPackageVolume());
-
-
-                deploymentTask.Progress = (task, progress) =>
+                logger.Info($"Progress: {progress.percentage} - Status: {task.Status}");
+                Dispatcher.Invoke(() =>
                 {
-                    logger.Info($"Progress: {progress.percentage} - Status: {task.Status}");
-                    Dispatcher.Invoke(() =>
-                    {
-                        txtUpdateProgress.Text = $"Progress: {progress.percentage}";
-                    });
+                    txtUpdateProgress.Text = $"Progress: {progress.percentage}";
+                });
 
-                };
+            };
 
-                var result = await deploymentTask;
+            var result = await deploymentTask;
 
-                if (deploymentTask.Status == AsyncStatus.Error)
+            if (result.ExtendedErrorCode != null)
+            {
+                txtUpdateStatus.Text = result.ErrorText;
+                logger.Error(result.ExtendedErrorCode);
+            }
+        }
+
+
+        private async void OnInstallUpdateWithExternalAppInstaller(object sender, RoutedEventArgs e)
+        {
+            txtUpdateStatus.Text = "Installing update. At the end of the process, the application will be closed. Launch it again to use the new version";
+
+            logger.Info($"AppInstaller Url: {txtAppInstallerUri.Text}");
+
+            HttpClient client = new HttpClient();
+            using (var stream = await client.GetStreamAsync(txtAppInstallerUri.Text))
+            {
+                using (var fileStream = new FileStream(@"C:\Temp\app.appinstaller", FileMode.CreateNew))
                 {
-                    txtUpdateStatus.Text = "Update failed";
-                    var results = deploymentTask.GetResults();
-                    logger.Error($"Error: {results.ErrorText}");
-                }
-                else if (deploymentTask.Status == AsyncStatus.Canceled)
-                {
-                    txtUpdateStatus.Text = "Update canceled";
-                    logger.Info("Update canceled");
+                    await stream.CopyToAsync(fileStream);
                 }
             }
-            catch (Exception ex)
+
+            try
             {
-                logger.Error(ex);
+                var ps = new ProcessStartInfo(@"C:\Temp\app.appinstaller")
+                {
+                    UseShellExecute = true
+                };
+                Process.Start(ps);
+            }
+            catch (Exception exc)
+            {
+                logger.Error(exc);
             }
         }
 

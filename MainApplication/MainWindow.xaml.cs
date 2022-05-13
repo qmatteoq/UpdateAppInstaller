@@ -1,17 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.IO;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 using Windows.ApplicationModel;
 
 namespace MainApplication
@@ -30,6 +19,13 @@ namespace MainApplication
         {
             var version = $"{Package.Current.Id.Version.Major}.{Package.Current.Id.Version.Minor}.{Package.Current.Id.Version.Build}.{Package.Current.Id.Version.Revision}"; 
             txtVersion.Text = $"Version {version}";
+        }
+
+        private void OnReadFile(object sender, RoutedEventArgs e)
+        {
+            var file = @$"{Environment.CurrentDirectory}\settings.json";
+            var settings = File.ReadAllText(file);
+            txtFileContent.Text = settings;
         }
     }
 }

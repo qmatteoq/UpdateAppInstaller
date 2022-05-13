@@ -11,5 +11,7 @@
     <StackPanel Margin="12">
         <TextBlock FontSize="28" Text="Welcome to the app!" />
         <TextBlock FontSize="20" x:Name="txtVersion" />
+        <Button Content="Read file" Click="OnReadFile" Margin="12, 0, 0, 0" />
+        <TextBlock x:Name="txtFileContent" Margin="12, 0, 0, 0" />
     </StackPanel>
 </Window>
